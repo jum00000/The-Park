@@ -1,0 +1,450 @@
+<!--
+Youtube Link: https://youtu.be/Np64Rt2z-5A
+Presentation Date and Time: 18 November 2021 8.50-8.55
+Group: C3BAE6
+First Name: Saroot
+Last Name: Bunkong
+Student ID: 6309680079
+E-mail: saroot.bun@dome.tu.ac.th
+
+First Name: Orranus
+Last Name: Khotchasenee
+Student ID: 6309681374
+E-mail: orranus.kho@dome.tu.ac.th
+-->
+
+<html>
+	<head>
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Yuji+Boku&display=swap" rel="stylesheet">
+
+		<title>The Park</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+			#blocker {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0,0,0,0.5);
+			}
+			#instructions {
+				width: 100%;
+				height: 100%;
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+
+				text-align: center;
+				font-size: 14px;
+				cursor: pointer;
+				color: white;
+			}
+			#skull {
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: right;
+				z-index: 100;
+				display:block;
+				color: darkred;
+			}
+			#objective {
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: right;
+				z-index: 100;
+				display:block;
+				color: darkred;
+			}
+			#end {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				background-color: rgba(0,0,0,1);
+				display: flex;
+				flex-direction: column;
+				justify-content: center;
+				align-items: center;
+				text-align: center;
+				font-size: 14px;
+				cursor: pointer;
+				color: darkred;
+			}
+		</style>
+		<meta charset="utf-8">
+	  	<meta name="viewport" content="width=device-width, initial-scale=1">
+	  	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+	  	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	  	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+	  	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+	</head>	
+	<body style="font-family: 'Yuji Boku', serif;">
+		<div id="blocker">
+			<div id="instructions">
+				<p style="color: darkred; font-size:64px;">
+					<b>The Park</b>
+				</p>
+				<p style="font-size:32px">
+					<b>Click to play</b>
+				</p>
+				<p>
+				<b>Move: WASD<br/>
+					Look: MOUSE<br/>
+					Interact: LEFTCLICK</b>
+				</p>
+				<p style="color: darkred; font-size:32px;">
+					<b>Find all the skulls and get back to the car</b>
+				</p>
+			</div>
+		</div>
+		<div id="skull">
+			<p style="font-size:46px">
+				<b><label >Skull: </label>
+				<label id="point" ></label>/7&emsp;</b>
+			</p>
+		</div>
+		<div id="objective">
+			<p style="font-size:46px">
+				<b><label >Return to the car.&emsp;</label></b>
+			</p>
+		</div>
+		<div id="end">
+			<p style="font-size:46px">
+				<b><label ><br/><br/><br/><br/><br/>The End</label></b>
+			</p>
+		</div>
+		<script src="js/three.js"></script>
+		<script src="js/GLTFLoader.js"></script>
+		<script src="js/PointerLockControls.js"></script>
+		<script src="js/OBJLoader.js"></script>	
+		
+		<script>
+			//variable for moving
+				let moveForward = false;
+				let moveBackward = false;
+				let moveLeft = false;
+				let moveRight = false;
+				let prevTime = performance.now();
+				const velocity = new THREE.Vector3();
+				const direction = new THREE.Vector3();
+
+				let point = 0;
+				var scene = new THREE.Scene( );
+				var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+				var renderer = new THREE.WebGLRenderer( );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+
+			//Create an Audio
+				const listener = new THREE.AudioListener();
+				camera.add( listener );
+				const sound = new THREE.Audio( listener );
+				const audioLoader = new THREE.AudioLoader();
+				audioLoader.load( 'sound/mixkit-forest-at-night-1224.ogg', function( buffer ) {
+					sound.setBuffer( buffer );
+					sound.setLoop( true );
+					sound.setVolume( 0.4 );
+					sound.play();
+				});
+
+				camera.add(listener);
+				const walk = new THREE.Audio(listener);
+				audioLoader.load( 'sound/walk.ogg', function( buffer ) {
+					walk.setBuffer( buffer );
+					walk.setLoop( true );
+					walk.setVolume( 0.4 );
+				});
+
+			//Resize Window
+				window.addEventListener( 'resize', function( )
+				{
+			      	var WIDTH = window.innerWidth;
+					var HEIGHT = window.innerHeight;
+			      	renderer.setSize( WIDTH, HEIGHT );
+			      	camera.aspect = WIDTH / HEIGHT;
+			      	camera.updateProjectionMatrix( );
+
+		    	} );
+
+			//Variable for UI
+				const blocker = document.getElementById( 'blocker' );
+		    	const instructions = document.getElementById( 'instructions' );
+		    	const uiSkull = document.getElementById( 'skull' );
+		    	const objective = document.getElementById( 'objective' );
+		    	const endScreen = document.getElementById( 'end' );
+
+	    	//Player Controller
+	    		controls = new THREE.PointerLockControls(camera, renderer.domElement);
+	    		instructions.addEventListener( 'click', function () {
+					controls.lock();
+				} );
+
+				controls.addEventListener( 'lock', function () {
+					blocker.style.display = 'none';
+				} );
+
+				controls.addEventListener( 'unlock', function () {
+					blocker.style.display = 'block';
+				} );
+
+				scene.add(controls.getObject());
+
+				const onKeyDown = function ( event ) {
+					switch ( event.code ) {
+						case 'KeyW':
+							moveForward = true;
+							break;
+						case 'KeyA':
+							moveLeft = true;
+							break;
+						case 'KeyS':
+							moveBackward = true;
+							break;
+						case 'KeyD':
+							moveRight = true;
+							break;
+					}
+				};
+				const onKeyUp = function ( event ) {
+					switch ( event.code ) {
+						case 'KeyW':
+							moveForward = false;
+							break;
+						case 'KeyA':
+							moveLeft = false;
+							break;
+						case 'KeyS':
+							moveBackward = false;
+							break;
+						case 'KeyD':
+							moveRight = false;
+							break;
+					}
+				};
+
+				document.addEventListener( 'keydown', onKeyDown );
+				document.addEventListener( 'keyup', onKeyUp );
+				raycaster = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 20 );
+				const clickMouse = new THREE.Vector2();
+				const moveMouse = new THREE.Vector2();
+				var clickable = THREE.Object3D;
+				var end = THREE.Object3D;
+				camera.position.set(160, 20, 15);
+
+				window.addEventListener('click', event => {
+					clickMouse.x = 0;
+					clickMouse.y = 0;
+
+					if (sound.context.state !== 'running') {
+	        			sound.context.resume();
+	    			}
+
+					raycaster.setFromCamera(moveMouse, camera);
+					const found = raycaster.intersectObjects(scene.children);
+					if(found.length > 0 && found[0].object.userData.clickable){
+						clickable = found[0].object;
+						scene.remove(clickable);
+						point++;
+					}
+				});
+
+			//Create OBJECT function
+				var park;
+				function createPark() { //Create The Park
+					var loader = new THREE.GLTFLoader();
+					loader.load("models/park.gltf", function(gltf){	
+						park = gltf.scene;
+						scene.add(gltf.scene);
+					});
+					var bush = new THREE.Mesh(new THREE.DodecahedronGeometry(5), new THREE.MeshPhongMaterial( { color: 0x32CD32 } ));
+					bush.position.set(45, 10, 18);
+					scene.add( bush );
+				}
+				var car;
+				function createCar() { //Create The Car
+					var loader = new THREE.GLTFLoader();
+					loader.load("models/car.gltf", function(gltf){	
+						car = gltf.scene;
+						gltf.scene.position.set(180,15,15);
+						gltf.scene.scale.set(7,7,7);
+						gltf.scene.rotation.set(0,55,0);
+						scene.add(gltf.scene);
+					});
+				}
+				function createEnd(){ //Create The End
+					var endGeometry = new THREE.BoxGeometry(38, 35, 38);
+					var endMaterials = new THREE.MeshPhongMaterial({transparent: true, opacity: 0,});
+					var endCube = new THREE.Mesh(endGeometry, endMaterials);
+					endCube.position.set(180,15,15);
+					endCube.userData.end = true;
+					scene.add(endCube);
+				}
+				function skyBox() { //Create SkyBox
+					var cubeGeometry = new THREE.BoxGeometry(1000, 1000, 1000);
+					var cubeMaterials = [
+						new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("img/kenon_star_ft.jpg"), side: THREE.DoubleSide}),
+						new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("img/kenon_star_bk.jpg"), side: THREE.DoubleSide}),
+						new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("img/kenon_star_up.jpg"), side: THREE.DoubleSide}),
+						new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("img/kenon_star_dn.jpg"), side: THREE.DoubleSide}),
+						new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("img/kenon_star_rt.jpg"), side: THREE.DoubleSide}),
+						new THREE.MeshBasicMaterial({ map: new THREE.TextureLoader().load("img/kenon_star_lf.jpg"), side: THREE.DoubleSide})
+					];
+					var cube = new THREE.Mesh(cubeGeometry, cubeMaterials);
+					scene.add(cube);
+				}
+				function createSkull(){	//Create Skull
+					const loader = new THREE.OBJLoader();
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(-15, 17, -53);
+						skull.rotation.y = 10
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(-2, 12, -106);
+						skull.rotation.y = 19;
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(-106, 10, 36);
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(-64, 11, -116);
+						skull.rotation.y = -105;
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(-118, 11, -110);
+						skull.rotation.y = 125;
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(46, 10, 68);
+						skull.rotation.y = 90;
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+
+					loader.loadAsync('models/skull.obj').then((group) => {
+						const skull = group.children[0];
+						skull.position.set(34, 11, -4);
+						skull.rotation.y = 270;
+						skull.userData.clickable = true;
+						scene.add(skull);
+					})
+				}
+				function crosshair(){ //Create Crosshair
+					var crosshair = new THREE.Mesh( new THREE.RingGeometry( 0.01, 0.02, 32), new THREE.MeshBasicMaterial({color: 0x8B0000}) );
+					camera.add(crosshair);
+					crosshair.position.set( 0, 0, -2);
+				}
+
+			//Light
+				var directionalLight = new THREE.DirectionalLight(0x435770, 0.75);
+				directionalLight.position.set(2, 1, 2);
+				scene.add(directionalLight);
+
+			//Use create OBJECT function
+				createPark();
+				skyBox();
+				createCar();
+				createSkull();
+				crosshair();
+
+			//Update function
+				var update = function ( )
+				{	
+					requestAnimationFrame( update );
+					renderer.render( scene, camera );
+					endScreen.style.display = 'none';
+					objective.style.display = 'none';
+					uiSkull.style.display = 'block';
+					var time = Date.now() * 0.0005;
+					document.getElementById("point").innerHTML = point;
+					scene.fog = new THREE.Fog(0x6b4984, 1,760 - (point * 100));
+					if(point == 7){ //if win
+						scene.remove(car);
+						createEnd();
+						point++;
+					}
+					if(point > 7){ //if win
+						uiSkull.style.display = 'none';
+						objective.style.display = 'block';
+						scene.fog = new THREE.Fog(0x6b4984, 1,60);
+					}
+
+					moveMouse.x = 0;
+					moveMouse.y = 0;
+					raycaster.setFromCamera(moveMouse, camera);
+					const found = raycaster.intersectObjects(scene.children);
+					if(found.length > 0 && found[0].object.userData.end){
+						endObj = found[0].object;
+						endScreen.style.display = 'block';
+						objective.style.display = 'none';
+						controls.unlock();
+					}
+					GameLoop( );
+				};
+
+				var GameLoop = function ( )
+				{
+
+					const time = performance.now();
+					walk.pause();
+					if ( controls.isLocked === true ) {
+						raycaster.ray.origin.copy( controls.getObject().position );
+						raycaster.ray.origin.y -= 10;
+						const delta = ( time - prevTime ) / 1000;
+						velocity.x -= velocity.x * 22.0 * delta; //walk speed
+						velocity.z -= velocity.z * 22.0 * delta; //walk speed
+						direction.z = Number( moveForward ) - Number( moveBackward );
+						direction.x = Number( moveRight ) - Number( moveLeft );
+						direction.normalize();
+
+						if ( moveForward || moveBackward ){
+							velocity.z -= direction.z * 400.0 * delta;
+						}
+
+						if ( moveLeft || moveRight ){
+							velocity.x -= direction.x * 400.0 * delta;
+						} 
+
+						if (moveRight || moveLeft || moveBackward || moveForward){
+							walk.play();
+						}
+
+						controls.moveRight( - velocity.x * delta );
+						controls.moveForward( - velocity.z * delta );
+						controls.getObject().position.y += ( velocity.y * delta );
+						if ( controls.getObject().position.y < 17 ) {
+							velocity.y = 0;
+							controls.getObject().position.y = 17;
+						}
+					}
+					prevTime = time;
+				};
+
+			update( );
+		</script>
+	</body>
+</html>
